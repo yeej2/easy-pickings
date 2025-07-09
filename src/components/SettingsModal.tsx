@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View, Dimensions, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ConsiderationsTab from '../screens/settings/ConsiderationsTab';
+import RestrictionsTab from '../screens/settings/RestrictionsTab';
 import PreferencesTab from '../screens/settings/PreferencesTab';
 import SuggestionsTab from '../screens/settings/SuggestionsTab';
 
@@ -12,15 +12,15 @@ type Props = {
   onClose: () => void;
 };
 
-const tabs = ['Considerations', 'Preferences', 'Suggestions'];
+const tabs = ['Restrictions', 'Preferences', 'Suggestions'];
 
 export default function SettingsModal({ visible, onClose }: Props) {
-  const [selectedTab, setSelectedTab] = useState('Considerations');
+  const [selectedTab, setSelectedTab] = useState('Restrictions');
 
   const renderTab = () => {
     switch (selectedTab) {
-      case 'Considerations':
-        return <ConsiderationsTab />;
+      case 'Restrictions':
+        return <RestrictionsTab />;
       case 'Preferences':
         return <PreferencesTab />;
       case 'Suggestions':

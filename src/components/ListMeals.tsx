@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -11,6 +11,12 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import ManualRecipeModal from './ManualRecipeModal'; // adjust path as needed
+import { db } from '../services/firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { User } from 'firebase/auth'; // or use from your AuthContext
+import { useAuth } from '../context/AuthContext';
+
 
 const { width, height } = Dimensions.get('window');
 const drawerWidth = width * 0.85;
@@ -33,7 +39,62 @@ type Props = {
 
 };
 
+export async function saveManualRecipe(user: User, recipe: {
+  name: string;
+  ingredients: string;
+  instructions: string;
+  notes: string;
+}) {
+  try {
+    const recipesRef = collection(db, 'users', user.uid, 'customRecipes');
+    await addDoc(recipesRef, {
+      ...recipe,
+      createdAt: new Date(),
+    });
+    console.log('Recipe saved!');
+  } catch (error) {
+    console.error('Error saving recipe:', error);
+  }
+}
+
 export default function ListMeals({ isOpen, onClose, onOpen, translateX }: Props) {
+  const [manualRecipeVisible, setManualRecipeVisible] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualIngredients, setManualIngredients] = useState('');
+  const [manualInstructions, setManualInstructions] = useState('');
+  const [manualNotes, setManualNotes] = useState('');
+
+  const [showRecipeOptions, setShowRecipeOptions] = useState(false);
+  const [manualModalVisible, setManualModalVisible] = useState(false);
+  const [recipeName, setRecipeName] = useState('');
+  const [recipeIngredients, setRecipeIngredients] = useState('');
+  const [recipeInstructions, setRecipeInstructions] = useState('');
+  const [recipeNotes, setRecipeNotes] = useState('');
+  const { user } = useAuth(); // at top of your component
+
+  const handleSaveManualRecipe = async () => {
+    if (!user) return;
+
+    try {
+      await addDoc(collection(db, 'users', user.uid, 'customRecipes'), {
+        name: manualName,
+        ingredients: manualIngredients,
+        instructions: manualInstructions,
+        notes: manualNotes,
+        createdAt: new Date(),
+      });
+
+      // Clear form after saving
+      setManualName('');
+      setManualIngredients('');
+      setManualInstructions('');
+      setManualNotes('');
+      setManualRecipeVisible(false);
+    } catch (error) {
+      console.error('Error saving manual recipe:', error);
+    }
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gesture) =>
@@ -70,16 +131,46 @@ export default function ListMeals({ isOpen, onClose, onOpen, translateX }: Props
             />
         </View>
         <TouchableOpacity>
-            <Text style={styles.favorites}>♡ Favorites</Text>
+            <Text style={styles.favorites}>♡ Recipes</Text>
         </TouchableOpacity>
         </View>
 
+        <TouchableOpacity onPress={() => setShowRecipeOptions(!showRecipeOptions)} style={styles.addButton}>
+          <Text style={styles.addButtonText}>Add Custom Recipe</Text>
+        </TouchableOpacity>
+
+        {showRecipeOptions && (
+          <View style={styles.recipePopup}>
+            <TouchableOpacity style={styles.popupItem} onPress={() => {
+              setShowRecipeOptions(false);
+              // handle with picture
+            }}>
+              <Ionicons name="camera-outline" size={20} color="white" />
+              <Text style={styles.popupText}>With a Picture</Text>
+            </TouchableOpacity>
+          <View style={styles.divider} />
+
+            <TouchableOpacity style={styles.popupItem} onPress={() => {
+              setShowRecipeOptions(false);
+              // handle with link
+            }}>
+              <Ionicons name="link-outline" size={20} color="white" />
+              <Text style={styles.popupText}>With a Link</Text>
+            </TouchableOpacity>
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={styles.popupItem} onPress={() => {
+            setShowRecipeOptions(false);
+            setManualRecipeVisible(true);
+          }} >
+            <Ionicons name="create-outline" size={20} color="white" />
+            <Text style={styles.popupText}>Manually</Text>
+          </TouchableOpacity>
 
 
+          </View>
+        )}
 
-      <TouchableOpacity style={styles.addButton}>
-        <Text style={styles.addButtonText}>Add Custom Recipe</Text>
-      </TouchableOpacity>
 
       <View style={styles.categoryGrid}>
         {categories.map((cat, idx) => (
@@ -91,6 +182,21 @@ export default function ListMeals({ isOpen, onClose, onOpen, translateX }: Props
           </TouchableOpacity>
         ))}
       </View>
+
+      <ManualRecipeModal
+  visible={manualRecipeVisible}
+  onClose={() => setManualRecipeVisible(false)}
+  onSave={handleSaveManualRecipe}
+  name={manualName}
+  ingredients={manualIngredients}
+  instructions={manualInstructions}
+  notes={manualNotes}
+  setName={setManualName}
+  setIngredients={setManualIngredients}
+  setInstructions={setManualInstructions}
+  setNotes={setManualNotes}
+/>
+
     </Animated.View>
   );
 }
@@ -131,6 +237,8 @@ const styles = StyleSheet.create({
       
     favorites: {
         color: '#fff',
+        fontWeight: '600',
+        fontSize: 16,
     },
     addButton: {
         backgroundColor: '#4a90e2',
@@ -173,4 +281,33 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontWeight: 'bold',
     },
+    recipePopup: {
+      position: 'absolute',
+      bottom: 414, // relative to the userInfo view
+      left: 0,
+      backgroundColor: '#2e2e2e',
+      borderRadius: 10,
+      zIndex: 100,
+      paddingVertical: 8,
+      paddingHorizontal: 20,
+      width: 290,
+      elevation: 10,
+      borderColor: '#444'
+    },
+    popupItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    popupText: {
+      marginLeft: 10,
+      fontSize: 16,
+      color: '#FFF',
+    },
+    divider: {
+      height: 1,
+      backgroundColor: '#444',
+      marginVertical: 4,
+    },
+  
 });

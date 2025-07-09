@@ -11,7 +11,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.sectionHeader}>Important Considerations</Text>
+      <Text style={styles.sectionHeader}>Important Restrictions</Text>
       <TextInput
         style={styles.input}
         placeholder="Allergies"
