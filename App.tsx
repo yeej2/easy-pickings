@@ -12,3 +12,10 @@ export default function App() {
     </AuthProvider>
   );
 }
+
+// types.ts or navigation/types.ts
+export type RootStackParamList = {
+  Home: undefined;
+  Settings: undefined;
+  // Add more screens here
+};

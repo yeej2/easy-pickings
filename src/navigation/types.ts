@@ -1,5 +1,8 @@
+// navigation/types.ts
 export type AuthStackParamList = {
-    Login: undefined;
-    Register: undefined;
-  };
-  
+  Home: undefined;
+  Settings: undefined;
+  Register: undefined;
+  Login: undefined;
+  ForgotPassword: undefined;
+};

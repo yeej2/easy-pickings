@@ -190,6 +190,35 @@ export default function HomeScreen() {
     ).current;
   
 
+    // Divider dimensions
+  const initialDividerWidth = 1;
+  const initialHorizontalHeight = height * 0.45;
+
+  const [dividerWidth, setDividerWidth] = useState(initialDividerWidth);
+  const [sectionHeight, setSectionHeight] = useState(initialHorizontalHeight);
+
+  // PanResponder for vertical divider
+  const verticalPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gestureState) => {
+        const newWidth = Math.min(Math.max(gestureState.moveX, 100), width - 100);
+        setDividerWidth(newWidth);
+      },
+    })
+  ).current;
+
+  // PanResponder for horizontal divider
+  const horizontalPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gestureState) => {
+        const newHeight = Math.min(Math.max(gestureState.moveY - 160, 100), height - 200);
+        setSectionHeight(newHeight);
+      },
+    })
+  ).current;
+
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
         {(leftOpen || isMealsOpen) && (
@@ -267,7 +296,7 @@ export default function HomeScreen() {
         )}
       />
 
-    <View style={styles.bottomSection}>
+    <View style={[styles.bottomSection, { height: sectionHeight }]}>
     <View style={styles.column}>
     <Text style={styles.columnHeader}>Shopping List</Text>
     <ScrollView style={styles.listScroll}>
