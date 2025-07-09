@@ -12,6 +12,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AddPageIcon from '../assets/add-page-icon.svg';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext'; // or wherever your AuthContext is
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { useState } from 'react';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack'; // ✅ this is correct
+import { AuthStackParamList } from '../navigation/types'; // ✅ make sure path is correct
+import SettingsModal from './SettingsModal'; // adjust path if needed
+
+type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Settings'>;
+
 
 const { width, height } = Dimensions.get('window');
 const SIDEBAR_WIDTH = width * 0.85;
@@ -22,8 +33,34 @@ type Props = {
 };
 
 export default function ListSidebar({ isOpen, toggleSidebar }: Props) {
+  // Inside your component
+  const navigation = useNavigation<NavigationProp>();
   const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
+  const [menuVisible, setMenuVisible] = useState(false);
+  const toggleMenu = () => setMenuVisible(!menuVisible);
+  const { logout } = useAuth();
+  const [settingsVisible, setSettingsVisible] = useState(false);
 
+  const { user } = useAuth();
+  const [fullName, setFullName] = useState('');
+  
+  // Fetch name from Firestore
+  useEffect(() => {
+    const fetchName = async () => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setFullName(`${data.firstName} ${data.lastName}`);
+        }
+      }
+    };
+  
+    fetchName();
+  }, [user?.uid]);
+
+  
+  
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => {
@@ -43,6 +80,7 @@ export default function ListSidebar({ isOpen, toggleSidebar }: Props) {
       },
     })
   ).current;
+  
 
   useEffect(() => {
     Animated.timing(slideAnim, {
@@ -51,6 +89,7 @@ export default function ListSidebar({ isOpen, toggleSidebar }: Props) {
       useNativeDriver: true,
     }).start();
   }, [isOpen]);
+
 
   return (
     <>
@@ -93,13 +132,49 @@ export default function ListSidebar({ isOpen, toggleSidebar }: Props) {
           <View style={styles.divider} />
         </View>
 
-        <View style={styles.userInfo}>
-          <Ionicons name="person-circle" size={30} color="white" style={{ marginRight: 8 }} />
-          <Text style={{ color: 'white', fontSize: 16 }}>John Smith</Text>
-        </View>
+{/* User Info + Popup Container */}
+<View style={{ position: 'relative', marginBottom: 0 }}>
+  <TouchableOpacity onPress={toggleMenu}>
+    <View style={styles.userInfo}>
+      <Ionicons name="person-circle" size={30} color="white" />
+      <Text style={styles.userText}>{fullName ? fullName : user?.email || 'User Settings'}</Text>
+    </View>
+  </TouchableOpacity>
+
+  {menuVisible && (
+    <View style={styles.popupMenu}>
+      <TouchableOpacity
+        style={styles.popupItem}
+        onPress={() => {
+          setMenuVisible(false);
+          setSettingsVisible(true); // open modal instead of navigating
+        }}
+      >
+        <Ionicons name="settings-outline" size={20} color="white" />
+        <Text style={styles.popupText}>Settings</Text>
+      </TouchableOpacity>
+
+      <View style={styles.divider} />
+
+      <TouchableOpacity
+        style={styles.popupItem}
+        onPress={() => {
+          setMenuVisible(false);
+          logout(); // from useAuth
+        }}
+      >
+        <Ionicons name="log-out-outline" size={20} color="white" />
+        <Text style={styles.popupText}>Logout</Text>
+      </TouchableOpacity>
+    </View>
+  )}
+</View>
       </Animated.View>
+      <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     </>
+    
   );
+  
 }
 
 const styles = StyleSheet.create({
@@ -174,6 +249,38 @@ const styles = StyleSheet.create({
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 70,
   },
+  userText: {
+    color: 'white',
+    fontSize: 16,
+    marginLeft: 10,
+  },
+  popupMenu: {
+    position: 'absolute',
+    bottom: 110, // relative to the userInfo view
+    left: 0,
+    backgroundColor: '#2e2e2e',
+    borderRadius: 10,
+    zIndex: 100,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    width: 250,
+    elevation: 10,
+    borderColor: '#444'
+  },
+  
+  
+  popupItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  
+  popupText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#FFF',
+  },
+    
 });

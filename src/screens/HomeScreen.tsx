@@ -43,6 +43,10 @@ export default function HomeScreen() {
 
   const [newItemText, setNewItemText] = useState('');
 
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
+  
+
   const addShoppingItem = () => {
     if (newItemText.trim()) {
       setShoppingList(prev => [
@@ -72,8 +76,36 @@ export default function HomeScreen() {
     ]);
   };
   
-
+  const handleCheckItem = (id: string) => {
+    setShoppingList(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, checked: !item.checked } : item
+      )
+    );
+  };
   
+  const handleStartEditing = (item: { id: string; name: string }) => {
+    setEditingItemId(item.id);
+    setEditingText(item.name);
+  };
+  
+  const handleFinishEditing = (id: string) => {
+    setShoppingList(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, name: editingText } : item
+      )
+    );
+    setEditingItemId(null);
+    setEditingText('');
+  };
+  
+  const handleDeleteItem = (id: string, listType: 'shopping' | 'suggestions') => {
+    if (listType === 'shopping') {
+      setShoppingList(prev => prev.filter(item => item.id !== id));
+    } else if (listType === 'suggestions') {
+      setSuggestions(prev => prev.filter(item => item.id !== id));
+    }
+  };  
   
   const toggleItemChecked = (id: string) => {
     setShoppingList((prev) =>
@@ -158,6 +190,35 @@ export default function HomeScreen() {
     ).current;
   
 
+    // Divider dimensions
+  const initialDividerWidth = 1;
+  const initialHorizontalHeight = height * 0.45;
+
+  const [dividerWidth, setDividerWidth] = useState(initialDividerWidth);
+  const [sectionHeight, setSectionHeight] = useState(initialHorizontalHeight);
+
+  // PanResponder for vertical divider
+  const verticalPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gestureState) => {
+        const newWidth = Math.min(Math.max(gestureState.moveX, 100), width - 100);
+        setDividerWidth(newWidth);
+      },
+    })
+  ).current;
+
+  // PanResponder for horizontal divider
+  const horizontalPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gestureState) => {
+        const newHeight = Math.min(Math.max(gestureState.moveY - 160, 100), height - 200);
+        setSectionHeight(newHeight);
+      },
+    })
+  ).current;
+
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
         {(leftOpen || isMealsOpen) && (
@@ -235,33 +296,58 @@ export default function HomeScreen() {
         )}
       />
 
-    <View style={styles.bottomSection}>
+    <View style={[styles.bottomSection, { height: sectionHeight }]}>
     <View style={styles.column}>
     <Text style={styles.columnHeader}>Shopping List</Text>
     <ScrollView style={styles.listScroll}>
   {/* Replace static list items with this: */}
   {shoppingList.map((item) => (
-    <View key={item.id} style={styles.listItem}>
-      <TouchableOpacity onPress={() => toggleItemChecked(item.id)}>
-        <Ionicons
-          name={item.checked ? "checkmark-circle" : "ellipse-outline"}
-          size={20}
-          color="white"
-        />
-      </TouchableOpacity>
-      <Text
+  <View key={item.id} style={styles.listItem}>
+    <TouchableOpacity onPress={() => handleCheckItem(item.id)}>
+      <Ionicons
+        name={item.checked ? 'checkmark-circle' : 'ellipse-outline'}
+        size={20}
+        color="white"
+      />
+    </TouchableOpacity>
+
+    {editingItemId === item.id ? (
+      <TextInput
+        value={editingText}
+        onChangeText={setEditingText}
+        onBlur={() => handleFinishEditing(item.id)}
+        autoFocus
         style={[
           styles.itemText,
-          item.checked && { textDecorationLine: 'line-through', color: 'gray' },
+          {
+            color: 'white',
+            textDecorationLine: item.checked ? 'line-through' : 'none',
+          },
         ]}
-      >
-        {item.name} ({item.quantity})
-      </Text>
-      <TouchableOpacity>
-        <Ionicons name="trash-outline" size={20} color="white" />
+      />
+    ) : (
+      <TouchableOpacity onPress={() => handleStartEditing(item)}>
+        <Text
+          style={[
+            styles.itemText,
+            {
+              textDecorationLine: item.checked ? 'line-through' : 'none',
+              color: item.checked ? 'gray' : 'white',
+            },
+          ]}
+        >
+          {item.name} {item.quantity ? `(${item.quantity})` : ''}
+        </Text>
       </TouchableOpacity>
-    </View>
-  ))}
+    )}
+
+    <TouchableOpacity onPress={() => handleDeleteItem(item.id, 'shopping')}>
+    <Ionicons name="trash-outline" size={20} color="white" />
+    </TouchableOpacity>
+
+  </View>
+))}
+
   <View style={styles.addItemRow}>
   <TextInput
     style={styles.input}
@@ -289,19 +375,18 @@ export default function HomeScreen() {
       <Ionicons name="settings-outline" size={20} color="white" />
     </View>
     <ScrollView style={styles.listScroll}>
-        {suggestions.map((item) => (
-        <View key={item.id} style={styles.listItem}>
-        <TouchableOpacity onPress={() => moveToShoppingList(item)}>
-            <Ionicons name="arrow-back-outline" size={20} color="#4A90E2" />
-        </TouchableOpacity>
-        <Text style={styles.itemText}>
-            {item.name} ({item.quantity})
-        </Text>
-        <TouchableOpacity>
-            <Ionicons name="trash-outline" size={20} color="white" />
-        </TouchableOpacity>
-        </View>
-    ))}
+    {suggestions.map((item) => (
+  <View key={item.id} style={styles.listItem}>
+    <TouchableOpacity onPress={() => moveToShoppingList(item)}>
+      <Ionicons name="arrow-back-outline" size={20} color="#4A90E2" />
+    </TouchableOpacity>
+    <Text style={styles.itemText}>{item.name} ({item.quantity})</Text>
+    <TouchableOpacity onPress={() => handleDeleteItem(item.id, 'suggestions')}>
+      <Ionicons name="trash-outline" size={20} color="white" />
+    </TouchableOpacity>
+  </View>
+))}
+
     </ScrollView>
   </View>
 </View>
@@ -465,6 +550,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 10,
-  }
+  },
+  editingInput: {
+    borderBottomColor: '#aaa',
+    borderBottomWidth: 1,
+    color: 'white',
+  },
   
 });
